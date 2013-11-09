@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2012 for Web
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StatsdNet.Glimpse.Execution", "StatsdNet.Glimpse.Execution.csproj", "{66D9224A-B9BA-4831-A5CC-5F773A9F4792}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StatsdNet.Glimpse.Execution", "TimeLineStats\StatsdNet.Glimpse.Execution.csproj", "{66D9224A-B9BA-4831-A5CC-5F773A9F4792}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{2BB2893D-1867-4B20-97AD-28B44C27C939}"
 	ProjectSection(SolutionItems) = preProject
