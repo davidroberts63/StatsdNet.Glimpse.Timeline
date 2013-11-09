@@ -87,6 +87,24 @@ namespace Tests
         }
 
         [Test]
+        public void SendMessageStatus_cleans_periods_from_key()
+        {
+            Assert.Fail("Must clean periods to avoid unneeded folder structure in StatsD & Graphite");
+        }
+
+        [Test]
+        public void SendMessageStatus_cleans_spaces_from_key()
+        {
+            Assert.Fail("Must clean periods to avoid unneeded folder structure in StatsD & Graphite");
+        }
+
+        [Test]
+        public void SendMessageStatus_send_duration_minus_the_children_messages_durations()
+        {
+            Assert.Fail("Send stat of just that method? Not the calls within it");
+        }
+
+        [Test]
         public void SendMessageStatus_uses_MethodInfo_when_message_is_SourceMessage()
         {
             Given_the_tab_with_mock_statsdpipe();
