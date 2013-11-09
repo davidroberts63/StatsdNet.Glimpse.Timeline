@@ -26,7 +26,14 @@ namespace StatsdNet.Glimpse.Execution
 
         public override object GetData(ITabContext context)
         {
-            return StatsCounts;
+            var data = new Dictionary<string, string>(
+                StatsCounts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
+
+            data["StatsdNet.Active"] = StatsdPipe.Active.ToString();
+            data["StatsdNet.ApplicationName"] = StatsdPipe.ApplicationName ?? "Unknown";
+            data["StatsdNet.Server"] = StatsdPipe.Server == null ? "Unknown" : StatsdPipe.Server.ToString();
+
+            return data;
         }
 
         public override string Name

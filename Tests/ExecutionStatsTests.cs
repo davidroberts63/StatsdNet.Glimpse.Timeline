@@ -79,12 +79,28 @@ namespace Tests
             And_message_with("DifferentMethodName", 9);
             StatsTab.SendMessageStats(MockMessage.Object);
 
-            Dictionary<string, int> results = StatsTab.GetData(null) as Dictionary<string, int>;
+            Dictionary<string, string> results = StatsTab.GetData(null) as Dictionary<string, string>;
 
             Assert.Contains("MethodTwoName", results.Keys);
             Assert.Contains("DifferentMethodName", results.Keys);
-            Assert.AreEqual(2, results["MethodTwoName"]);
-            Assert.AreEqual(3, results["DifferentMethodName"]);
+            Assert.AreEqual("2", results["MethodTwoName"]);
+            Assert.AreEqual("3", results["DifferentMethodName"]);
+        }
+
+        [Test]
+        public void GetData_returns_pipe_status_when_not_active()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+
+            Dictionary<string, string> results = StatsTab.GetData(null) as Dictionary<string, string>;
+            
+            Assert.Contains("StatsdNet.Active", results.Keys);
+            Assert.Contains("StatsdNet.ApplicationName", results.Keys);
+            Assert.Contains("StatsdNet.Server", results.Keys);
+
+            Assert.AreEqual(false.ToString(), results["StatsdNet.Active"]);
+            Assert.AreEqual("Unknown", results["StatsdNet.ApplicationName"]);
+            Assert.AreEqual("Unknown", results["StatsdNet.Server"]);
         }
 
         [Test]
