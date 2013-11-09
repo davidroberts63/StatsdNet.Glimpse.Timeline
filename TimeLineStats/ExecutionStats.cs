@@ -10,7 +10,8 @@ namespace StatsdNet.Glimpse.Execution
 {
     public class ExecutionStats : TabBase, ITabSetup
     {
-        protected IStatsdPipe StatsdPipe { get; set; }
+        protected IStatsdPipe StatsdPipe { get; private set; }
+        protected Dictionary<string, int> StatsCounts { get; private set; }
 
         public ExecutionStats()
         {
@@ -19,15 +20,12 @@ namespace StatsdNet.Glimpse.Execution
         public ExecutionStats(IStatsdPipe statsdPipe)
         {
             StatsdPipe = statsdPipe;
+            StatsCounts = new Dictionary<string, int>();
         }
 
         public override object GetData(ITabContext context)
         {
-            var results = new Dictionary<string, int>();
-
-            results.Add("Test", 1);
-
-            return results;
+            return StatsCounts;
         }
 
         public override string Name
@@ -43,6 +41,12 @@ namespace StatsdNet.Glimpse.Execution
         public void SendMessageStats(Glmps.Message.ITimelineMessage message)
         {
             StatsdPipe.Timing(message.EventName, (long)message.Duration.TotalMilliseconds);
+
+            if (StatsCounts.ContainsKey(message.EventName) == false)
+            {
+                StatsCounts[message.EventName] = 0;
+            }
+            StatsCounts[message.EventName]++;
         }
 
     }

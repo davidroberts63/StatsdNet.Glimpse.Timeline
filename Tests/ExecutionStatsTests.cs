@@ -8,6 +8,7 @@ using Glimpse.Core.Extensibility;
 using Glimpse.Core.Message;
 using NUnit.Framework;
 using StatsdNet;
+using StatsdNet.Glimpse.Execution;
 
 namespace Tests
 {
@@ -28,21 +29,62 @@ namespace Tests
             broker.Verify(b => b.Subscribe<ITimelineMessage>(It.IsAny<Action<ITimelineMessage>>()));
         }
 
+        public ExecutionStats StatsTab { get; set; }
+        public Mock<IStatsdPipe> MockStatsdPipe { get; set; }
+        public Mock<ITimelineMessage> MockMessage { get; set; }
+
+        public void Given_the_tab_with_mock_statsdpipe()
+        {
+            MockStatsdPipe = new Mock<IStatsdPipe>();
+            StatsTab = new ExecutionStats(MockStatsdPipe.Object);
+        }
+
+        public void And_message_with(string name, long milliseconds)
+        {
+            MockMessage = new Mock<ITimelineMessage>();
+            MockMessage.SetupAllProperties();
+
+            MockMessage.Object.EventName = name;
+            MockMessage.Object.Duration = TimeSpan.FromMilliseconds(milliseconds);
+        }
+
         [Test]
         public void SendMessageStats_sends_message_timing()
         {
-            var message = new Mock<ITimelineMessage>();
-            message.SetupAllProperties();
-            message.Object.EventName = "MethodOneName";
-            message.Object.Duration = TimeSpan.FromMilliseconds(5.25);
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
 
-            var statsd = new Mock<IStatsdPipe>();
+            StatsTab.SendMessageStats(MockMessage.Object);
 
-            var tab = new StatsdNet.Glimpse.Execution.ExecutionStats(statsd.Object);
+            MockStatsdPipe.Verify(s => s.Timing("MethodOneName", 5, 1));
+        }
 
-            tab.SendMessageStats(message.Object);
+        [Test]
+        public void GetData_returns_stats_counts()
+        {
+            Given_the_tab_with_mock_statsdpipe();
 
-            statsd.Verify(s => s.Timing("MethodOneName", 5, 1));
+            And_message_with("MethodTwoName", 2);
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            And_message_with("MethodTwoName", 7);
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            And_message_with("DifferentMethodName", 1);
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            And_message_with("DifferentMethodName", 4);
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            And_message_with("DifferentMethodName", 9);
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            Dictionary<string, int> results = StatsTab.GetData(null) as Dictionary<string, int>;
+
+            Assert.Contains("MethodTwoName", results.Keys);
+            Assert.Contains("DifferentMethodName", results.Keys);
+            Assert.AreEqual(2, results["MethodTwoName"]);
+            Assert.AreEqual(3, results["DifferentMethodName"]);
         }
     }
 }
