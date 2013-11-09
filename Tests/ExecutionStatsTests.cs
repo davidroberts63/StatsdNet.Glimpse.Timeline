@@ -32,6 +32,7 @@ namespace Tests
         public ExecutionStats StatsTab { get; set; }
         public Mock<IStatsdPipe> MockStatsdPipe { get; set; }
         public Mock<ITimelineMessage> MockMessage { get; set; }
+        public Mock<ISourceMessage> MockSourceMessage { get; set; }
 
         public void Given_the_tab_with_mock_statsdpipe()
         {
@@ -45,7 +46,21 @@ namespace Tests
             MockMessage.SetupAllProperties();
 
             MockMessage.Object.EventName = name;
+            MockMessage.Object.EventSubText = "subtext";
             MockMessage.Object.Duration = TimeSpan.FromMilliseconds(milliseconds);
+        }
+
+        public void And_SourceMessage()
+        {
+            MockSourceMessage = new Mock<ISourceMessage>();
+            var mockTimeline = MockSourceMessage.As<ITimelineMessage>();
+            MockSourceMessage.SetupAllProperties();
+
+            MockSourceMessage.Object.ExecutedMethod = typeof(ExecutionStatsTests).GetMethod("Given_the_tab_with_mock_statsdpipe");
+            MockSourceMessage.Object.ExecutedType = typeof(ExecutionStatsTests);
+
+            mockTimeline.SetupAllProperties();
+            mockTimeline.Object.Duration = TimeSpan.FromMilliseconds(5);
         }
 
         [Test]
@@ -56,7 +71,31 @@ namespace Tests
 
             StatsTab.SendMessageStats(MockMessage.Object);
 
+            MockStatsdPipe.Verify(s => s.Timing("MethodOneName(subtext)", 5, 1));
+        }
+
+        [Test]
+        public void SendMessageStatus_does_not_use_subtext_if_empty()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+            MockMessage.Object.EventSubText = String.Empty;
+
+            StatsTab.SendMessageStats(MockMessage.Object);
+
             MockStatsdPipe.Verify(s => s.Timing("MethodOneName", 5, 1));
+        }
+
+        [Test]
+        public void SendMessageStatus_uses_MethodInfo_when_message_is_SourceMessage()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_SourceMessage();
+            
+            StatsTab.SendMessageStats(MockSourceMessage.Object as ITimelineMessage);
+
+            string name = "Tests.ExecutionStatsTests.Given_the_tab_with_mock_statsdpipe";
+            MockStatsdPipe.Verify(s => s.Timing(name, 5, 1));
         }
 
         [Test]
@@ -81,10 +120,10 @@ namespace Tests
 
             Dictionary<string, string> results = StatsTab.GetData(null) as Dictionary<string, string>;
 
-            Assert.Contains("MethodTwoName", results.Keys);
-            Assert.Contains("DifferentMethodName", results.Keys);
-            Assert.AreEqual("2", results["MethodTwoName"]);
-            Assert.AreEqual("3", results["DifferentMethodName"]);
+            Assert.Contains("MethodTwoName(subtext)", results.Keys);
+            Assert.Contains("DifferentMethodName(subtext)", results.Keys);
+            Assert.AreEqual("2", results["MethodTwoName(subtext)"]);
+            Assert.AreEqual("3", results["DifferentMethodName(subtext)"]);
         }
 
         [Test]

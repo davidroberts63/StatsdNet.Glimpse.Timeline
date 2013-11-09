@@ -48,13 +48,30 @@ namespace StatsdNet.Glimpse.Execution
 
         public void SendMessageStats(Glmps.Message.ITimelineMessage message)
         {
-            StatsdPipe.Timing(message.EventName, (long)message.Duration.TotalMilliseconds);
+            string statKey = GenerateStatKey(message);
 
-            if (StatsCounts.ContainsKey(message.EventName) == false)
+            StatsdPipe.Timing(statKey, (long)message.Duration.TotalMilliseconds);
+
+            if (StatsCounts.ContainsKey(statKey) == false)
             {
-                StatsCounts[message.EventName] = 0;
+                StatsCounts[statKey] = 0;
             }
-            StatsCounts[message.EventName]++;
+            StatsCounts[statKey]++;
+        }
+
+        protected string GenerateStatKey(Glmps.Message.ITimelineMessage message)
+        {
+            if (message is Glmps.Message.ISourceMessage)
+            {
+                var source = message as Glmps.Message.ISourceMessage;
+
+                return source.ExecutedType.FullName + "." + source.ExecutedMethod.Name;
+            }
+            else
+            {
+                string subtext = string.IsNullOrWhiteSpace(message.EventSubText) ? "" : "(" + message.EventSubText + ")";
+                return message.EventName + subtext;
+            }
         }
 
     }
