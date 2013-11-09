@@ -14,6 +14,7 @@ namespace StatsdNet.Glimpse.Execution
         protected Dictionary<string, int> StatsCounts { get; private set; }
 
         public ExecutionStats()
+            :this(new StatsdPipe())
         {
         }
 

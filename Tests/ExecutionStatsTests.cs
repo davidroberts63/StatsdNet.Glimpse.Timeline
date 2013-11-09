@@ -86,5 +86,24 @@ namespace Tests
             Assert.AreEqual(2, results["MethodTwoName"]);
             Assert.AreEqual(3, results["DifferentMethodName"]);
         }
+
+        [Test]
+        public void Default_ctor_provides_concrete_StatsdNetPipe()
+        {
+            var tab = new TestExecutionStats();
+
+            Assert.IsInstanceOf<StatsdPipe>(tab.WrappedStatsdPipe);
+        }
+
+        public class TestExecutionStats : ExecutionStats
+        {
+            public IStatsdPipe WrappedStatsdPipe
+            {
+                get
+                {
+                    return this.StatsdPipe;
+                }
+            }
+        }
     }
 }
