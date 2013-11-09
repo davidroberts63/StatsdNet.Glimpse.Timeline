@@ -35,6 +35,9 @@
     <Reference Include="Glimpse.Core">
       <HintPath>packages\Glimpse.1.7.0\lib\net45\Glimpse.Core.dll</HintPath>
     </Reference>
+    <Reference Include="StatsdNet">
+      <HintPath>..\packages\StatsdNet.1.0.0.0\lib\net40\StatsdNet.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />

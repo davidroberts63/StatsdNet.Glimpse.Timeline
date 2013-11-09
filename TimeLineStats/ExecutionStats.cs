@@ -10,6 +10,17 @@ namespace StatsdNet.Glimpse.Execution
 {
     public class ExecutionStats : TabBase, ITabSetup
     {
+        protected IStatsdPipe StatsdPipe { get; set; }
+
+        public ExecutionStats()
+        {
+        }
+
+        public ExecutionStats(IStatsdPipe statsdPipe)
+        {
+            StatsdPipe = statsdPipe;
+        }
+
         public override object GetData(ITabContext context)
         {
             var results = new Dictionary<string, int>();
@@ -31,6 +42,7 @@ namespace StatsdNet.Glimpse.Execution
 
         public void SendMessageStats(Glmps.Message.ITimelineMessage message)
         {
+            StatsdPipe.Timing(message.EventName, (long)message.Duration.TotalMilliseconds);
         }
 
     }
