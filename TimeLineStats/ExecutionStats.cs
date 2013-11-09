@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Glmps = Glimpse.Core;
 
 namespace StatsdNet.Glimpse.Execution
 {
@@ -25,7 +26,11 @@ namespace StatsdNet.Glimpse.Execution
 
         public void Setup(ITabSetupContext context)
         {
-            // no op currently.
+            context.MessageBroker.Subscribe<Glmps.Message.ITimelineMessage>(SendMessageStats);
+        }
+
+        public void SendMessageStats(Glmps.Message.ITimelineMessage message)
+        {
         }
 
     }
