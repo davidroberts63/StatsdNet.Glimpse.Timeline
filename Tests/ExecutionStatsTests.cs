@@ -109,6 +109,21 @@ namespace Tests
         }
 
         [Test]
+        public void SendMessageStatus_sums_stats_timing()
+        {
+            var tab = new TestExecutionStats();
+            And_message_with("MethodOneName", 5);
+
+            for (int i = 0; i < 100; i++)
+            {
+                tab.SendMessageStats(MockMessage.Object);
+            }
+
+            Assert.Contains("StatsdNet.TimingSum", tab.WrappedStatsCounts.Keys);
+            Assert.Greater(tab.WrappedStatsCounts["StatsdNet.TimingSum"], 1000);
+        }
+
+        [Test]
         public void SendMessageStatus_uses_MethodInfo_when_message_is_SourceMessage()
         {
             Given_the_tab_with_mock_statsdpipe();
@@ -179,6 +194,14 @@ namespace Tests
                 get
                 {
                     return this.StatsdPipe;
+                }
+            }
+
+            public Dictionary<string, int> WrappedStatsCounts
+            {
+                get
+                {
+                    return this.StatsCounts;
                 }
             }
         }

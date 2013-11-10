@@ -1,6 +1,7 @@
 ﻿using Glimpse.Core.Extensibility;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,6 +23,7 @@ namespace StatsdNet.Glimpse.Execution
         {
             StatsdPipe = statsdPipe;
             StatsCounts = new Dictionary<string, int>();
+            StatsCounts["StatsdNet.TimingSum"] = 0;
         }
 
         public override object GetData(ITabContext context)
@@ -32,7 +34,7 @@ namespace StatsdNet.Glimpse.Execution
             data["StatsdNet.Active"] = StatsdPipe.Active.ToString();
             data["StatsdNet.ApplicationName"] = StatsdPipe.ApplicationName ?? "Unknown";
             data["StatsdNet.Server"] = StatsdPipe.Server == null ? "Unknown" : StatsdPipe.Server.ToString();
-
+            
             return data;
         }
 
@@ -48,6 +50,8 @@ namespace StatsdNet.Glimpse.Execution
 
         public void SendMessageStats(Glmps.Message.ITimelineMessage message)
         {
+            var selfTimer = Stopwatch.StartNew();
+
             string statKey = GenerateStatKey(message);
 
             StatsdPipe.Timing(statKey, (long)message.Duration.TotalMilliseconds);
@@ -56,7 +60,11 @@ namespace StatsdNet.Glimpse.Execution
             {
                 StatsCounts[statKey] = 0;
             }
+
             StatsCounts[statKey]++;
+
+            selfTimer.Stop();
+            StatsCounts["StatsdNet.TimingSum"] += (int)selfTimer.Elapsed.TotalMilliseconds;
         }
 
         protected string GenerateStatKey(Glmps.Message.ITimelineMessage message)
