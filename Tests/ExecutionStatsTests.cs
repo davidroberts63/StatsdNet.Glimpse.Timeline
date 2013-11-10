@@ -80,7 +80,7 @@ namespace Tests
 
             StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
-            MockStatsdPipe.Verify(s => s.Timing("MethodOneName(subtext)", 5, 1));
+            MockStatsdPipe.Verify(s => s.Timing("MethodOneName_subtext", 5, 1));
         }
 
         [Test]
@@ -103,7 +103,7 @@ namespace Tests
 
             StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
-            MockStatsdPipe.Verify(s => s.Timing("Method-One-Name(subtext)", 5, 1));
+            MockStatsdPipe.Verify(s => s.Timing("Method-One-Name_subtext", 5, 1));
         }
 
         [Test]
@@ -114,7 +114,7 @@ namespace Tests
 
             StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
-            MockStatsdPipe.Verify(s => s.Timing("Method_One_Name(subtext)", 5, 1));
+            MockStatsdPipe.Verify(s => s.Timing("Method_One_Name_subtext", 5, 1));
         }
 
         [Test]
@@ -183,10 +183,10 @@ namespace Tests
 
             Dictionary<string, string> results = StatsTab.GetData(MockTabContext.Object) as Dictionary<string, string>;
 
-            Assert.Contains("MethodTwoName(subtext)", results.Keys);
-            Assert.Contains("DifferentMethodName(subtext)", results.Keys);
-            Assert.AreEqual("2", results["MethodTwoName(subtext)"]);
-            Assert.AreEqual("3", results["DifferentMethodName(subtext)"]);
+            Assert.Contains("MethodTwoName_subtext", results.Keys);
+            Assert.Contains("DifferentMethodName_subtext", results.Keys);
+            Assert.AreEqual("2", results["MethodTwoName_subtext"]);
+            Assert.AreEqual("3", results["DifferentMethodName_subtext"]);
         }
 
         [Test]

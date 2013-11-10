@@ -96,7 +96,7 @@ namespace StatsdNet.Glimpse.Execution
             }
             else
             {
-                string subtext = string.IsNullOrWhiteSpace(message.EventSubText) ? "" : "(" + message.EventSubText + ")";
+                string subtext = string.IsNullOrWhiteSpace(message.EventSubText) ? "" : "_" + message.EventSubText;
                 key = message.EventName + subtext;
 
                 key = key.Replace(".", "-");
