@@ -111,16 +111,17 @@ namespace Tests
         [Test]
         public void SendMessageStatus_sums_stats_timing()
         {
-            var tab = new TestExecutionStats();
+            Given_the_tab_with_mock_statsdpipe();
             And_message_with("MethodOneName", 5);
 
             for (int i = 0; i < 100; i++)
             {
-                tab.SendMessageStats(MockMessage.Object);
+                StatsTab.SendMessageStats(MockMessage.Object);
             }
+            var results = StatsTab.GetData(null) as Dictionary<string, string>;
 
-            Assert.Contains("StatsdNet.TimingSum", tab.WrappedStatsCounts.Keys);
-            Assert.Greater(tab.WrappedStatsCounts["StatsdNet.TimingSum"], 1000);
+            Assert.Contains("StatsdNet.TimingSum", results.Keys);
+            Assert.Greater(Convert.ToInt32(results["StatsdNet.TimingSum"]), 1000);
         }
 
         [Test]
