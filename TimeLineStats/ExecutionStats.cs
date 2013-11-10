@@ -12,7 +12,7 @@ namespace StatsdNet.Glimpse.Execution
     public class ExecutionStats : TabBase, ITabSetup
     {
         protected IStatsdPipe StatsdPipe { get; private set; }
-        protected Dictionary<string, int> StatsCounts { get; private set; }
+        protected string StatsCountsKey { get { return typeof(ExecutionStats).FullName; } }
 
         public ExecutionStats()
             :this(new StatsdPipe())
@@ -22,14 +22,15 @@ namespace StatsdNet.Glimpse.Execution
         public ExecutionStats(IStatsdPipe statsdPipe)
         {
             StatsdPipe = statsdPipe;
-            StatsCounts = new Dictionary<string, int>();
-            StatsCounts["StatsdNet.TimingSum"] = 0;
         }
 
         public override object GetData(ITabContext context)
         {
+            SetupStatCountsStore(context.TabStore);
+
+            var counts = context.TabStore.Get(StatsCountsKey) as Dictionary<string, double>;
             var data = new Dictionary<string, string>(
-                StatsCounts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
+                counts.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
 
             data["StatsdNet.Active"] = StatsdPipe.Active.ToString();
             data["StatsdNet.ApplicationName"] = StatsdPipe.ApplicationName ?? "Unknown";
@@ -45,10 +46,10 @@ namespace StatsdNet.Glimpse.Execution
 
         public void Setup(ITabSetupContext context)
         {
-            context.MessageBroker.Subscribe<Glmps.Message.ITimelineMessage>(SendMessageStats);
+            context.MessageBroker.Subscribe<Glmps.Message.ITimelineMessage>(message => SendMessageStats(message, context));
         }
 
-        public void SendMessageStats(Glmps.Message.ITimelineMessage message)
+        public void SendMessageStats(Glmps.Message.ITimelineMessage message, ITabSetupContext context = null)
         {
             var selfTimer = Stopwatch.StartNew();
 
@@ -56,15 +57,32 @@ namespace StatsdNet.Glimpse.Execution
 
             StatsdPipe.Timing(statKey, (long)message.Duration.TotalMilliseconds);
 
-            if (StatsCounts.ContainsKey(statKey) == false)
-            {
-                StatsCounts[statKey] = 0;
-            }
-
-            StatsCounts[statKey]++;
+            IncrementStoredCount(statKey, context);
 
             selfTimer.Stop();
-            StatsCounts["StatsdNet.TimingSum"] += (int)selfTimer.Elapsed.TotalMilliseconds;
+
+            IncrementStoredCount("StatsdNet.TimingSum", context, selfTimer.Elapsed.TotalMilliseconds);
+        }
+
+        protected void IncrementStoredCount(string statKey, ITabSetupContext context, double amount = 1)
+        {
+            SetupStatCountsStore(context.GetTabStore());
+            var counts = context.GetTabStore().Get(StatsCountsKey) as Dictionary<string, double>;
+
+            if (counts.ContainsKey(statKey) == false)
+            {
+                counts[statKey] = 0;
+            }
+
+            counts[statKey] += amount;
+        }
+
+        protected void SetupStatCountsStore(IDataStore store)
+        {
+            if (store.Contains(StatsCountsKey) == false)
+            {
+                store.Set(StatsCountsKey, new Dictionary<string, double>());
+            }
         }
 
         protected string GenerateStatKey(Glmps.Message.ITimelineMessage message)

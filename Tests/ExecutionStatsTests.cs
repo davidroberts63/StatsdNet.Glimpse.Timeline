@@ -33,11 +33,20 @@ namespace Tests
         public Mock<IStatsdPipe> MockStatsdPipe { get; set; }
         public Mock<ITimelineMessage> MockMessage { get; set; }
         public Mock<ISourceMessage> MockSourceMessage { get; set; }
+        public Mock<ITabSetupContext> MockTabSetupContext { get; set; }
+        public Mock<ITabContext> MockTabContext { get; set; }
+        public IDataStore DataStore { get; set; }
 
         public void Given_the_tab_with_mock_statsdpipe()
         {
             MockStatsdPipe = new Mock<IStatsdPipe>();
             StatsTab = new ExecutionStats(MockStatsdPipe.Object);
+            MockTabContext = new Mock<ITabContext>();
+            MockTabSetupContext = new Mock<ITabSetupContext>();
+            DataStore = new DictionaryDataStoreAdapter(new Dictionary<object, object>());
+
+            MockTabContext.Setup(ctx => ctx.TabStore).Returns(DataStore);
+            MockTabSetupContext.Setup(ctx => ctx.GetTabStore()).Returns(DataStore);
         }
 
         public void And_message_with(string name, long milliseconds)
@@ -69,7 +78,7 @@ namespace Tests
             Given_the_tab_with_mock_statsdpipe();
             And_message_with("MethodOneName", 5);
 
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             MockStatsdPipe.Verify(s => s.Timing("MethodOneName(subtext)", 5, 1));
         }
@@ -81,7 +90,7 @@ namespace Tests
             And_message_with("MethodOneName", 5);
             MockMessage.Object.EventSubText = String.Empty;
 
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             MockStatsdPipe.Verify(s => s.Timing("MethodOneName", 5, 1));
         }
@@ -92,7 +101,7 @@ namespace Tests
             Given_the_tab_with_mock_statsdpipe();
             And_message_with("Method.One.Name", 5);
 
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             MockStatsdPipe.Verify(s => s.Timing("Method-One-Name(subtext)", 5, 1));
         }
@@ -103,7 +112,7 @@ namespace Tests
             Given_the_tab_with_mock_statsdpipe();
             And_message_with("Method One Name", 5);
 
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             MockStatsdPipe.Verify(s => s.Timing("Method_One_Name(subtext)", 5, 1));
         }
@@ -116,12 +125,28 @@ namespace Tests
 
             for (int i = 0; i < 100; i++)
             {
-                StatsTab.SendMessageStats(MockMessage.Object);
+                StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
             }
-            var results = StatsTab.GetData(null) as Dictionary<string, string>;
+            var results = StatsTab.GetData(MockTabContext.Object) as Dictionary<string, string>;
 
             Assert.Contains("StatsdNet.TimingSum", results.Keys);
-            Assert.Greater(Convert.ToInt32(results["StatsdNet.TimingSum"]), 1000);
+            Assert.Greater(Convert.ToDouble(results["StatsdNet.TimingSum"]), 0);
+        }
+
+        [Test]
+        public void SendMessageStatus_sum_doesnt_take_exorbant_amount_of_time()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+
+            for (int i = 0; i < 100; i++)
+            {
+                StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
+            }
+            var results = StatsTab.GetData(MockTabContext.Object) as Dictionary<string, string>;
+
+            Assert.Contains("StatsdNet.TimingSum", results.Keys);
+            Assert.Less(Convert.ToDouble(results["StatsdNet.TimingSum"]), 25); // Roughly 1/4 millisecond per stat being sent.
         }
 
         [Test]
@@ -129,8 +154,8 @@ namespace Tests
         {
             Given_the_tab_with_mock_statsdpipe();
             And_SourceMessage();
-            
-            StatsTab.SendMessageStats(MockSourceMessage.Object as ITimelineMessage);
+
+            StatsTab.SendMessageStats(MockSourceMessage.Object as ITimelineMessage, MockTabSetupContext.Object);
 
             string name = "Tests.ExecutionStatsTests.Given_the_tab_with_mock_statsdpipe";
             MockStatsdPipe.Verify(s => s.Timing(name, 5, 1));
@@ -142,21 +167,21 @@ namespace Tests
             Given_the_tab_with_mock_statsdpipe();
 
             And_message_with("MethodTwoName", 2);
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             And_message_with("MethodTwoName", 7);
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             And_message_with("DifferentMethodName", 1);
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             And_message_with("DifferentMethodName", 4);
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
             And_message_with("DifferentMethodName", 9);
-            StatsTab.SendMessageStats(MockMessage.Object);
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
 
-            Dictionary<string, string> results = StatsTab.GetData(null) as Dictionary<string, string>;
+            Dictionary<string, string> results = StatsTab.GetData(MockTabContext.Object) as Dictionary<string, string>;
 
             Assert.Contains("MethodTwoName(subtext)", results.Keys);
             Assert.Contains("DifferentMethodName(subtext)", results.Keys);
@@ -169,7 +194,7 @@ namespace Tests
         {
             Given_the_tab_with_mock_statsdpipe();
 
-            Dictionary<string, string> results = StatsTab.GetData(null) as Dictionary<string, string>;
+            Dictionary<string, string> results = StatsTab.GetData(MockTabContext.Object) as Dictionary<string, string>;
             
             Assert.Contains("StatsdNet.Active", results.Keys);
             Assert.Contains("StatsdNet.ApplicationName", results.Keys);
@@ -195,14 +220,6 @@ namespace Tests
                 get
                 {
                     return this.StatsdPipe;
-                }
-            }
-
-            public Dictionary<string, int> WrappedStatsCounts
-            {
-                get
-                {
-                    return this.StatsCounts;
                 }
             }
         }
