@@ -61,17 +61,23 @@ namespace StatsdNet.Glimpse.Execution
 
         protected string GenerateStatKey(Glmps.Message.ITimelineMessage message)
         {
+            string key = String.Empty;
+
             if (message is Glmps.Message.ISourceMessage)
             {
                 var source = message as Glmps.Message.ISourceMessage;
-
-                return source.ExecutedType.FullName + "." + source.ExecutedMethod.Name;
+                key = source.ExecutedType.FullName + "." + source.ExecutedMethod.Name;
             }
             else
             {
                 string subtext = string.IsNullOrWhiteSpace(message.EventSubText) ? "" : "(" + message.EventSubText + ")";
-                return message.EventName + subtext;
+                key = message.EventName + subtext;
+
+                key = key.Replace(".", "-");
+                key = key.Replace(" ", "_");
             }
+
+            return key;
         }
 
     }

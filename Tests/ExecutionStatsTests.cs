@@ -87,21 +87,25 @@ namespace Tests
         }
 
         [Test]
-        public void SendMessageStatus_cleans_periods_from_key()
+        public void SendMessageStatus_cleans_periods_from_key_when_using_EventName()
         {
-            Assert.Fail("Must clean periods to avoid unneeded folder structure in StatsD & Graphite");
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("Method.One.Name", 5);
+
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            MockStatsdPipe.Verify(s => s.Timing("Method-One-Name(subtext)", 5, 1));
         }
 
         [Test]
         public void SendMessageStatus_cleans_spaces_from_key()
         {
-            Assert.Fail("Must clean periods to avoid unneeded folder structure in StatsD & Graphite");
-        }
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("Method One Name", 5);
 
-        [Test]
-        public void SendMessageStatus_send_duration_minus_the_children_messages_durations()
-        {
-            Assert.Fail("Send stat of just that method? Not the calls within it");
+            StatsTab.SendMessageStats(MockMessage.Object);
+
+            MockStatsdPipe.Verify(s => s.Timing("Method_One_Name(subtext)", 5, 1));
         }
 
         [Test]
