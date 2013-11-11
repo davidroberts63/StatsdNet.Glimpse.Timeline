@@ -35,6 +35,7 @@ namespace Tests
         public Mock<ISourceMessage> MockSourceMessage { get; set; }
         public Mock<ITabSetupContext> MockTabSetupContext { get; set; }
         public Mock<ITabContext> MockTabContext { get; set; }
+        public Mock<IMessageBroker> MockMessageBroker { get; set; }
         public IDataStore DataStore { get; set; }
 
         public void Given_the_tab_with_mock_statsdpipe()
@@ -44,9 +45,12 @@ namespace Tests
             MockTabContext = new Mock<ITabContext>();
             MockTabSetupContext = new Mock<ITabSetupContext>();
             DataStore = new DictionaryDataStoreAdapter(new Dictionary<object, object>());
+            MockMessageBroker = new Mock<IMessageBroker>();
 
             MockTabContext.Setup(ctx => ctx.TabStore).Returns(DataStore);
             MockTabSetupContext.Setup(ctx => ctx.GetTabStore()).Returns(DataStore);
+            MockTabSetupContext.Setup(ctx => ctx.MessageBroker).Returns(MockMessageBroker.Object);
+
         }
 
         public void And_message_with(string name, long milliseconds)
@@ -57,6 +61,8 @@ namespace Tests
             MockMessage.Object.EventName = name;
             MockMessage.Object.EventSubText = "subtext";
             MockMessage.Object.Duration = TimeSpan.FromMilliseconds(milliseconds);
+            MockMessage.Object.Offset = TimeSpan.FromSeconds(3);
+            MockMessage.Object.StartTime = DateTime.Now.AddSeconds(-5);
         }
 
         public void And_SourceMessage()
@@ -204,6 +210,67 @@ namespace Tests
             Assert.AreEqual("Unknown", results["StatsdNet.ApplicationName"]);
             Assert.AreEqual("Unknown", results["StatsdNet.Server"]);
         }
+
+        [Test]
+        public void SendMessageStats_publishes_message_with_duration_of_stats_timing()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
+
+            MockMessageBroker.Verify(broker => broker.Publish
+                (It.Is<StatsdNetMessage>(msg => msg.EventName.Equals("GlimpseStatsdNetTiming: MethodOneName") && msg.Duration.TotalMilliseconds > 0)));
+        }
+
+        [Test]
+        public void SendMessageStats_publishes_message_with_offset_of_stats_timing()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
+
+            MockMessageBroker.Verify(broker => broker.Publish
+                (It.Is<StatsdNetMessage>(msg => msg.Offset == TimeSpan.FromSeconds(8))));
+        }
+
+        [Test]
+        public void SendMessageStats_ignores_stats_timing_messages()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            var message = new StatsdNetMessage();
+
+            StatsTab.SendMessageStats(message, MockTabSetupContext.Object);
+
+            MockStatsdPipe.Verify(pipe => pipe.Timing(It.IsAny<string>(), It.IsAny<long>(), 1), Times.Never());
+            MockTabSetupContext.Verify(ctx => ctx.GetTabStore(), Times.Never());
+            MockMessageBroker.Verify(broker => broker.Publish(It.IsAny<StatsdNetMessage>()), Times.Never);
+        }
+
+        [Test]
+        public void SendMessageStats_sends_stats_timing_to_statsd()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
+
+            MockStatsdPipe.Verify(pipe => pipe.Timing("GlimpseStatsdNetTiming", It.IsAny<long>(), 1));
+        }
+
+        [Test]
+        public void SendMessageStats_publishes_message_with_statsd_event_category()
+        {
+            Given_the_tab_with_mock_statsdpipe();
+            And_message_with("MethodOneName", 5);
+
+            StatsTab.SendMessageStats(MockMessage.Object, MockTabSetupContext.Object);
+
+            MockMessageBroker.Verify(broker => broker.Publish
+                (It.Is<StatsdNetMessage>(msg => msg.EventCategory != null && msg.EventCategory.Name.Equals("StatsdNet"))));
+        }
+
 
         [Test]
         public void Default_ctor_provides_concrete_StatsdNetPipe()

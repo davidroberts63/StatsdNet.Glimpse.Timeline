@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Glmps = Glimpse.Core;
+using Glimpse.Core.Message;
 
 namespace StatsdNet.Glimpse.Execution
 {
@@ -51,6 +52,9 @@ namespace StatsdNet.Glimpse.Execution
 
         public void SendMessageStats(Glmps.Message.ITimelineMessage message, ITabSetupContext context = null)
         {
+            if (message is StatsdNetMessage) return;
+
+            var timer = InitializeTimer(message);
             var selfTimer = Stopwatch.StartNew();
 
             string statKey = GenerateStatKey(message);
@@ -61,7 +65,31 @@ namespace StatsdNet.Glimpse.Execution
 
             selfTimer.Stop();
 
-            IncrementStoredCount("StatsdNet.TimingSum", context, selfTimer.Elapsed.TotalMilliseconds);
+            timer.Duration = selfTimer.Elapsed;
+            PublishTimingMessage(timer, message, context);
+
+            IncrementStoredCount("StatsdNet.TimingSum", context, timer.Duration.TotalMilliseconds);
+            StatsdPipe.Timing("GlimpseStatsdNetTiming", (long)timer.Duration.TotalMilliseconds);
+        }
+
+        protected void PublishTimingMessage(TimerResult timed, ITimelineMessage message, ITabSetupContext context)
+        {
+            context.MessageBroker.Publish(new StatsdNetMessage()
+            {
+                Id = Guid.NewGuid(),
+                EventName = "GlimpseStatsdNetTiming: " + message.EventName,
+                EventCategory = new TimelineCategoryItem("StatsdNet", "black", "grey")
+            }.AsTimedMessage(timed));
+        }
+
+        protected TimerResult InitializeTimer(ITimelineMessage message)
+        {
+            var timer = new TimerResult();
+
+            timer.StartTime = DateTime.Now;
+            timer.Offset = message.Offset + (timer.StartTime.Subtract(message.StartTime));
+
+            return timer;
         }
 
         protected void IncrementStoredCount(string statKey, ITabSetupContext context, double amount = 1)
